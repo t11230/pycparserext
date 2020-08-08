@@ -16,8 +16,7 @@ class CParserBase(pycparser.c_parser.CParser):
         kwds['yacctab'] = 'pycparserext.yacctab'
         pycparser.c_parser.CParser.__init__(self, **kwds)
 
-    def parse(self, text, filename='', debuglevel=0,
-            initial_type_symbols=set()):
+    def parse(self, text, filename='', debuglevel=0, initial_type_symbols=set()):
         self.clex.filename = filename
         self.clex.reset_lineno()
 
@@ -190,7 +189,7 @@ class TypeDeclExt(c_ast.TypeDecl):
         return TypeDeclExt(td.declname, td.quals, td.type, td.coord)
 
 
-class ArrayDeclExt(c_ast.TypeDecl):
+class ArrayDeclExt(c_ast.ArrayDecl):
     @staticmethod
     def from_pycparser(ad):
         assert isinstance(ad, c_ast.ArrayDecl)
@@ -283,73 +282,13 @@ class _AttributesMixin(object):
         """
         p[0] = p[1]
 
-    # {{{ /!\ names must match C parser to override
-
-    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
-    def p_xxx_declarator_1(self, p):
-        """ xxx_declarator  : direct_xxx_declarator attributes_opt
-        """
-        if p[2].exprs:
-            if isinstance(p[1], c_ast.ArrayDecl):
-                p[1].type = to_decl_ext(p[1].type)
-                p[1].type.attributes = p[2]
-            elif isinstance(p[1], c_ast.FuncDecl):
-                p[1].type = to_decl_ext(p[1].type)
-                p[1].type.attributes = p[2]
-            elif not isinstance(p[1], c_ast.TypeDecl):
-                raise NotImplementedError(
-                        "cannot attach attributes to nodes of type '%s'"
-                        % type(p[1]))
-            else:
-                p[1] = to_decl_ext(p[1])
-                p[1].attributes = p[2]
-
-        p[0] = p[1]
-
-    # }}}
-
-    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
-    def p_xxx_declarator_2(self, p):
-        """ xxx_declarator  : pointer direct_xxx_declarator attributes_opt
-                            | pointer attributes_opt direct_xxx_declarator
-        """
-        if hasattr(p[3], "exprs"):
-            attr_decl = p[3]
-            decl = p[2]
-        else:
-            attr_decl = p[2]
-            decl = p[3]
-
-        if not attr_decl.exprs:
-            attr_decl = None
-
-        if attr_decl:
-            if isinstance(decl, c_ast.ArrayDecl):
-                decl.type = to_decl_ext(decl.type)
-                decl.type.attributes = attr_decl
-            elif isinstance(decl, c_ast.FuncDecl):
-                decl.type = to_decl_ext(decl.type)
-                decl.type.attributes = attr_decl
-            elif not isinstance(p[2], c_ast.TypeDecl):
-                raise NotImplementedError(
-                        "cannot attach attributes to nodes of type '%s'"
-                        % type(p[1]))
-            else:
-                decl = to_decl_ext(decl)
-                decl.attributes = attr_decl
-
-        p[0] = self._type_modify_decl(decl, p[1])
-
     def p_function_specifier_attr(self, p):
         """ function_specifier  : attribute_decl
         """
         p[0] = AttributeSpecifier(p[1])
 
-# }}}
-
 
 # {{{ asm
-
 class _AsmMixin(object):
     def p_asm_opt_1(self, p):
         """ asm_opt : empty
@@ -407,16 +346,20 @@ class _AsmMixin(object):
         """
         p[0] = p[1]
 
-    def p_statement_gnu(self, p):
-        """ statement   : asm_no_semi
-                        | asm_no_semi SEMI
+    def p_statement_asm(self, p):
+        """ statement : asm_no_semi
+                      | asm_no_semi SEMI
         """
         p[0] = p[1]
 
-#    def p_asm_with_semi(self, p):
-#        """ asm : asm SEMI
-#        """
-#        p[0] = p[1]
+    def p_asm_label_opt(self, p):
+        """ asm_label_opt : asm_keyword LPAREN unified_string_literal RPAREN
+                          | empty
+        """
+        if p[1] is None:
+            p[0] = None
+        else:
+            p[0] = Asm(p[1], p[3], None, None, None, coord=self._coord(p.lineno(2)))
 
 
 @template
@@ -424,12 +367,70 @@ class _AsmAndAttributesMixin(_AsmMixin, _AttributesMixin):
     # {{{ /!\ names must match C parser to override
 
     @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
+    def p_xxx_declarator_1(self, p):
+        """ xxx_declarator  : direct_xxx_declarator asm_label_opt attributes_opt
+        """
+        if p[2] or p[3].exprs:
+            if isinstance(p[1], (c_ast.ArrayDecl, c_ast.FuncDecl)):
+                decl_ext = to_decl_ext(p[1].type)
+
+            elif isinstance(p[1], c_ast.TypeDecl):
+                decl_ext = to_decl_ext(p[1])
+
+            else:
+                raise NotImplementedError(
+                    "cannot attach asm or attributes to nodes of type '%s'"
+                    % type(p[1]))
+
+            if p[2]:
+                decl_ext.asm = p[2]
+
+            if p[3].exprs:
+                decl_ext.attributes = p[3]
+
+            p[1] = decl_ext
+
+        p[0] = p[1]
+
+    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
+    def p_xxx_declarator_2(self, p):
+        """ xxx_declarator  : pointer direct_xxx_declarator attributes_opt
+                            | pointer attributes_opt direct_xxx_declarator
+        """
+        if hasattr(p[3], "exprs"):
+            attr_decl = p[3]
+            decl = p[2]
+        else:
+            attr_decl = p[2]
+            decl = p[3]
+
+        if not attr_decl.exprs:
+            attr_decl = None
+
+        if attr_decl:
+            if isinstance(decl, c_ast.ArrayDecl):
+                decl.type = to_decl_ext(decl.type)
+                decl.type.attributes = attr_decl
+            elif isinstance(decl, c_ast.FuncDecl):
+                decl.type = to_decl_ext(decl.type)
+                decl.type.attributes = attr_decl
+            elif not isinstance(p[2], c_ast.TypeDecl):
+                raise NotImplementedError(
+                    "cannot attach attributes to nodes of type '%s'"
+                    % type(p[1]))
+            else:
+                decl = to_decl_ext(decl)
+                decl.attributes = attr_decl
+
+        p[0] = self._type_modify_decl(decl, p[1])
+
+    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
     def p_direct_xxx_declarator_6(self, p):
         """ direct_xxx_declarator   : direct_xxx_declarator LPAREN parameter_type_list \
                                             RPAREN asm_opt attributes_opt
                                     | direct_xxx_declarator \
                                             LPAREN identifier_list_opt RPAREN \
-                                            asm_opt attributes_opt
+                                            asm_label_opt attributes_opt
         """
         func = FuncDeclExt(
             args=p[3],
@@ -442,7 +443,7 @@ class _AsmAndAttributesMixin(_AsmMixin, _AttributesMixin):
 
     def p_direct_abstract_declarator_6(self, p):
         """ direct_abstract_declarator  : direct_abstract_declarator \
-                LPAREN parameter_type_list_opt RPAREN asm_opt attributes_opt
+                LPAREN parameter_type_list_opt RPAREN asm_label_opt attributes_opt
         """
         func = FuncDeclExt(
             args=p[3],

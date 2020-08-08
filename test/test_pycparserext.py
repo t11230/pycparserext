@@ -108,6 +108,25 @@ def test_asm_volatile_4():
     print(GnuCGenerator().visit(ast))
 
 
+def test_asm_label():
+    src = """
+    int foo asm("renamed_foo");
+
+    unsigned long bar asm("renamed_bar") __attribute__ ((aligned (16)));
+
+    void func() {
+        static int var asm("renamed_var") = 5;
+    }
+    """
+    from pycparserext.ext_c_parser import GnuCParser
+    p = GnuCParser()
+    ast = p.parse(src)
+    ast.show()
+
+    from pycparserext.ext_c_generator import GnuCGenerator
+    print(GnuCGenerator().visit(ast))
+
+
 def test_funky_header_code():
     src = """
         extern __inline int __attribute__ ((__nothrow__)) __signbitf (float __x)
