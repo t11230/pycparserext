@@ -517,7 +517,7 @@ def test_node_visitor():
         'Asm': [0, 1],
         # PreprocessorLine is OpenCL, not GNU
         'PreprocessorLine': [0, 0],
-        'TypeOfDeclaration': [0, 2],
+        'TypeOfDeclaration': [0, 4],
         'TypeOfExpression': [0, 1],
         'FuncDeclExt': [0, 1],
     }
@@ -555,6 +555,7 @@ def test_node_visitor():
     int func1(int a, int b) {
         __typeof__(a) _a = __builtin_types_compatible_p(long char, short int);
         __typeof__ (__typeof__ (char *)[4]) y;
+        typeof (typeof (char *)[4]) z;
         asm("rdtsc" : "=A" (val));
         __attribute__((unused)) static int c;
     }

@@ -487,6 +487,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
 
     def p_type_specifier_gnu_typeof_expr(self, p):
         """ type_specifier  : __TYPEOF__ LPAREN expression RPAREN
+                            | TYPEOF LPAREN expression RPAREN
         """
         if isinstance(p[3], c_ast.TypeDecl):
             pass
@@ -495,6 +496,7 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
 
     def p_type_specifier_gnu_typeof_decl(self, p):
         """ type_specifier  : __TYPEOF__ LPAREN parameter_declaration RPAREN
+                            | TYPEOF LPAREN parameter_declaration RPAREN
         """
         p[0] = TypeOfDeclaration(p[3])
 
