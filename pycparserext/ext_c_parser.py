@@ -476,6 +476,8 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
         """ type_qualifier  : __CONST
                             | __RESTRICT
                             | __EXTENSION__
+                            | __SIGNED__
+                            | __SIGNED
         """
         p[0] = p[1]
 

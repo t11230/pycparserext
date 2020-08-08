@@ -63,7 +63,8 @@ def add_lexer_keywords(cls, keywords):
 
 add_lexer_keywords(GnuCLexer, [
     '__attribute__', '__asm__', '__asm', '__typeof__',
-    '__real__', '__imag__', '__builtin_types_compatible_p',
+    '__signed__', '__signed', '__real__', '__imag__',
+    '__builtin_types_compatible_p',
     '__const', '__restrict', '__inline', '__inline__',
     '__extension__', 'asm', '__attribute'])
 

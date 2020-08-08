@@ -269,6 +269,20 @@ def test_array_ptr_decl_attribute():
     print(GnuCGenerator().visit(ast))
 
 
+def test_gnu_keywords():
+    src = """
+    __const int foo;
+    typedef __signed__ char __s8;
+    """
+    from pycparserext.ext_c_parser import GnuCParser
+    p = GnuCParser()
+    ast = p.parse(src)
+    ast.show()
+
+    from pycparserext.ext_c_generator import GnuCGenerator
+    print(GnuCGenerator().visit(ast))
+
+
 def test_gnu_statement_expression():
     src = """
       int func(int a) {
