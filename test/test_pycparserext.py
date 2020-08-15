@@ -503,6 +503,24 @@ def test_node_visitor():
         assert visit_num[0] == visit_num[1], assert_msg
 
 
+def test_case_ranges():
+    src = """
+        char foo(char ch) {
+            switch(ch) {
+                case '0' ... '9':
+                    return '#';
+                case 1 ... 2:
+                    return 'A';
+                case 0:
+                    return '0';
+                default:
+                    return '?';
+            }
+        }
+        """
+    assert _round_trip_matches(src)
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:

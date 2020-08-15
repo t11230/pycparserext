@@ -540,6 +540,13 @@ class GnuCParser(_AsmAndAttributesMixin, CParserBase):
         """
         p[0] = RangeExpression(p[2], p[4], coord=self._coord(p.lineno(1)))
 
+    def p_labeled_statement_gnu(self, p):
+        """ labeled_statement : CASE constant_expression ELLIPSIS constant_expression \
+                                    COLON pragmacomp_or_statement """
+        token_coord = self._token_coord(p, 1)
+        range_exp = RangeExpression(p[2], p[4], coord=token_coord)
+        p[0] = c_ast.Case(range_exp, [p[6]], token_coord)
+
 # }}}
 
 
